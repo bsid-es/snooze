@@ -1,0 +1,13 @@
+image: alpine/edge
+arch: x86_64
+packages:
+  - go
+sources:
+  - git@git.sr.ht:~fmrsn/cron
+secrets:
+  - 270fb008-0636-482b-880e-d6c2472ada6c
+tasks:
+  - mirror-gh: |
+      ssh-keyscan github.com >>$HOME/.ssh/known_hosts
+      cd cron
+      git push --mirror git@github.com:bsid-es/cron
