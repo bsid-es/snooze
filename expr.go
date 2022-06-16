@@ -167,8 +167,7 @@ func join(sep string, elems ...string) string {
 parseGroups implements the following BNF:
 
 	groups     ::= expr ( ',' expr )*
-	expr       ::= numSpec ( '/' step )?
-	numSpec    ::= '*' | rangeOrNum
+	expr       ::= '*' | '?' | rangeOrNum ( '/' step )?
 	rangeOrNum ::= number ( '-' number )?
 	step       ::= number
 	number     ::= digit+
@@ -191,8 +190,15 @@ func parseGroups(typ fieldType, groups string, min, max int) (val uint64, err er
 		}
 		groups = groupsRest
 
+		if expr == "*" || expr == "?" && (typ == fieldDaysOfMonth || typ == fieldDaysOfWeek) {
+			for i := min; i <= max; i++ {
+				val |= uint64(1) << i
+			}
+			continue
+		}
+
 		incr := 1
-		numSpec, step, _ := strings.Cut(expr, "/")
+		rangeOrNum, step, _ := strings.Cut(expr, "/")
 		if step != "" {
 			if incr, err = strconv.Atoi(step); err != nil {
 				return 0, &parseGroupsError{
@@ -207,13 +213,7 @@ func parseGroups(typ fieldType, groups string, min, max int) (val uint64, err er
 			}
 
 		}
-		if numSpec == "*" {
-			for i := min; i <= max; i += incr {
-				val |= uint64(1) << i
-			}
-			continue
-		}
-		rangeOrNum, from, to := numSpec, min, max
+		from, to := min, max
 		if rangeFrom, rangeTo, _ := strings.Cut(rangeOrNum, "-"); rangeTo != "" {
 			// Range.
 			if from, err = parseNumber(typ, rangeFrom); err == nil {
