@@ -12,7 +12,8 @@ import (
 type fieldType int
 
 const (
-	fieldMinutes fieldType = iota
+	fieldSeconds fieldType = iota
+	fieldMinutes
 	fieldHours
 	fieldDaysOfMonth
 	fieldMonths
@@ -21,6 +22,8 @@ const (
 
 func (t fieldType) String() string {
 	switch t {
+	case fieldSeconds:
+		return "seconds"
 	case fieldMinutes:
 		return "minutes"
 	case fieldHours:
@@ -68,16 +71,16 @@ const (
 )
 
 type Expr struct {
-	expr                string
-	m, h, dom, mon, dow uint64
+	expr                   string
+	s, m, h, dom, mon, dow uint64
 }
 
 func main() {
-	expr, err := Parse("* * * 12 SUN")
+	expr, err := Parse("0,2 * * * 12 SUN")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(strconv.FormatUint(expr.m, 2))
+	fmt.Println(strconv.FormatUint(expr.s, 2))
 }
 
 func MustParse(expr string) Expr {
@@ -95,7 +98,8 @@ func Parse(expr string) (e Expr, err error) {
 	return
 }
 
-func splitFields(expr string) (m, h, dom, mon, dow string) {
+func splitFields(expr string) (s, m, h, dom, mon, dow string) {
+	s, expr, _ = strings.Cut(expr, " ")
 	m, expr, _ = strings.Cut(expr, " ")
 	h, expr, _ = strings.Cut(expr, " ")
 	dom, expr, _ = strings.Cut(expr, " ")
@@ -104,21 +108,22 @@ func splitFields(expr string) (m, h, dom, mon, dow string) {
 	return
 }
 
-func MustNew(minutes, hours, daysOfMonth, months, daysOfWeek string) Expr {
-	e, err := New(minutes, hours, daysOfMonth, months, daysOfWeek)
+func MustNew(seconds, minutes, hours, daysOfMonth, months, daysOfWeek string) Expr {
+	e, err := New(seconds, minutes, hours, daysOfMonth, months, daysOfWeek)
 	if err != nil {
 		panic(err)
 	}
 	return e
 }
 
-func New(minutes, hours, daysOfMonth, months, daysOfWeek string) (e Expr, err error) {
+func New(seconds, minutes, hours, daysOfMonth, months, daysOfWeek string) (e Expr, err error) {
 	parseField := func(typ fieldType, field string, min, max int) (v uint64) {
 		if err == nil {
 			v, err = parseGroups(typ, field, min, max)
 		}
 		return v
 	}
+	s := parseField(fieldSeconds, seconds, 0, 59)
 	m := parseField(fieldMinutes, minutes, 0, 59)
 	h := parseField(fieldHours, hours, 0, 23)
 	dom := parseField(fieldDaysOfMonth, daysOfMonth, 1, 31)
@@ -144,7 +149,8 @@ func New(minutes, hours, daysOfMonth, months, daysOfWeek string) (e Expr, err er
 	}
 
 	return Expr{
-		expr: join(" ", minutes, hours, daysOfMonth, months, daysOfWeek),
+		expr: join(" ", seconds, minutes, hours, daysOfMonth, months, daysOfWeek),
+		s:    s,
 		m:    m,
 		h:    h,
 		dom:  dom,
@@ -285,13 +291,13 @@ func (e *Expr) UnmarshalText(text []byte) (err error) {
 
 func (e *Expr) Prev(from time.Time) time.Time {
 	t := from.Truncate(time.Minute).Add(-time.Minute)
-	eM, eH, eDom, eMon, eDow := e.m, e.h, e.dom, e.mon, e.dow
+	eS, eM, eH, eDom, eMon, eDow := e.s, e.m, e.h, e.dom, e.mon, e.dow
 
 	var y int
 	var mon time.Month
 	var dom int
 	var dow time.Weekday
-	var h, m int
+	var h, m, s int
 day:
 	for {
 		y, mon, dom = t.Date()
@@ -313,17 +319,21 @@ day:
 	doy := t.YearDay()
 hour:
 	for {
-		h, m, _ = t.Clock()
+		h, m, s = t.Clock()
 		switch {
 		case eH&(1<<h) == 0:
 			h = prev(h, 0, eH) + 1
 			m = -1
+			s = 59
 		case eM&(1<<m) == 0:
-			m = prev(m, 0, eM)
+			m = prev(m, 0, eM) + 1
+			s = -1
+		case eS&(1<<s) == 0:
+			s = prev(s, 0, eS)
 		default:
 			break hour
 		}
-		t = time.Date(y, mon, dom, h, m, 0, 0, t.Location())
+		t = time.Date(y, mon, dom, h, m, s, 0, t.Location())
 		if t.YearDay() != doy {
 			// We hit a different day.
 			goto day
@@ -334,13 +344,13 @@ hour:
 
 func (e *Expr) Next(from time.Time) time.Time {
 	t := from.Truncate(time.Second).Add(time.Second)
-	eM, eH, eDom, eMon, eDow := e.m, e.h, e.dom, e.mon, e.dow
+	eS, eM, eH, eDom, eMon, eDow := e.s, e.m, e.h, e.dom, e.mon, e.dow
 
 	var y int
 	var mon time.Month
 	var dom int
 	var dow time.Weekday
-	var h, m int
+	var h, m, s int
 day:
 	for {
 		y, mon, dom = t.Date()
@@ -362,17 +372,21 @@ day:
 	doy := t.YearDay()
 hour:
 	for {
-		h, m, _ = t.Clock()
+		h, m, s = t.Clock()
 		switch {
 		case eH&(1<<h) == 0:
 			h = next(h, 23, eH)
 			m = 0
+			s = 0
 		case eM&(1<<m) == 0:
 			m = next(m, 59, eM)
+			s = 0
+		case eS&(1<<s) == 0:
+			s = next(s, 59, eS)
 		default:
 			break hour
 		}
-		t = time.Date(y, mon, dom, h, m, 0, 0, t.Location())
+		t = time.Date(y, mon, dom, h, m, s, 0, t.Location())
 		if t.YearDay() != doy {
 			// We hit a different day.
 			goto day
