@@ -41,13 +41,13 @@ func (t fieldType) String() string {
 
 var (
 	dowFromName = map[string]int{
-		"sun": 0, "suN": 0, "sUn": 0, "sUN": 0, "Sun": 0, "SuN": 0, "SUn": 0, "SUN": 0,
-		"mon": 1, "moN": 1, "mOn": 1, "mON": 1, "Mon": 1, "MoN": 1, "MOn": 1, "MON": 1,
-		"tue": 2, "tuE": 2, "tUe": 2, "tUE": 2, "Tue": 2, "TuE": 2, "TUe": 2, "TUE": 2,
-		"wed": 3, "weD": 3, "wEd": 3, "wED": 3, "Wed": 3, "WeD": 3, "WEd": 3, "WED": 3,
-		"thu": 4, "thU": 4, "tHu": 4, "tHU": 4, "Thu": 4, "ThU": 4, "THu": 4, "THU": 4,
-		"fri": 5, "frI": 5, "fRi": 5, "fRI": 5, "Fri": 5, "FrI": 5, "FRi": 5, "FRI": 5,
-		"sat": 6, "saT": 6, "sAt": 6, "sAT": 6, "Sat": 6, "SaT": 6, "SAt": 6, "SAT": 6,
+		"sun": 1, "suN": 1, "sUn": 1, "sUN": 1, "Sun": 1, "SuN": 1, "SUn": 1, "SUN": 1,
+		"mon": 2, "moN": 2, "mOn": 2, "mON": 2, "Mon": 2, "MoN": 2, "MOn": 2, "MON": 2,
+		"tue": 3, "tuE": 3, "tUe": 3, "tUE": 3, "Tue": 3, "TuE": 3, "TUe": 3, "TUE": 3,
+		"wed": 4, "weD": 4, "wEd": 4, "wED": 4, "Wed": 4, "WeD": 4, "WEd": 4, "WED": 4,
+		"thu": 5, "thU": 5, "tHu": 5, "tHU": 5, "Thu": 5, "ThU": 5, "THu": 5, "THU": 5,
+		"fri": 6, "frI": 6, "fRi": 6, "fRI": 6, "Fri": 6, "FrI": 6, "FRi": 6, "FRI": 6,
+		"sat": 7, "saT": 7, "sAt": 7, "sAT": 7, "Sat": 7, "SaT": 7, "SAt": 7, "SAT": 7,
 	}
 	monFromName = map[string]int{
 		"jan": 1, "jaN": 1, "jAn": 1, "jAN": 1, "Jan": 1, "JaN": 1, "JAn": 1, "JAN": 1,
@@ -128,7 +128,7 @@ func New(seconds, minutes, hours, daysOfMonth, months, daysOfWeek string) (e Exp
 	h := parseField(fieldHours, hours, 0, 23)
 	dom := parseField(fieldDaysOfMonth, daysOfMonth, 1, 31)
 	mon := parseField(fieldMonths, months, 1, 12)
-	dow := parseField(fieldDaysOfWeek, daysOfWeek, 0, 6)
+	dow := parseField(fieldDaysOfWeek, daysOfWeek, 1, 7) >> 1 // Move range 1-7 to 0-6.
 	if err != nil {
 		return e, err
 	}
